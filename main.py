@@ -147,14 +147,14 @@ class LightNode:
         # call socket() again to close the connection
         socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-    def send_message(self, msg_type: MsgType, data: bytearray = None):
+    def send_message(self, msg_type: MsgType, data: bytearray = bytearray()):
         msg = bytearray(msg_type.value) + data
         self.xcvr.sendall(msg)
 
     def receive_message(self):
         return self.xcvr.recv(1024)
 
-    def query(self, msg_type: MsgType, data: bytearray = None):
+    def query(self, msg_type: MsgType, data: bytearray = bytearray()):
         self.send_message(msg_type, data)
         return self.receive_message()
 

@@ -1,0 +1,11 @@
+[Unit]
+Description=Neopixel control server
+After=network.target
+
+[Service]
+Type=simple
+Restart=always
+ExecStart=/home/mitchell/lights-venv/bin/python /home/mitchell/LaitShow/main.py
+
+[Install]
+WantedBy=multi-user.target
