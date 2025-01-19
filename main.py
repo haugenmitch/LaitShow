@@ -143,11 +143,10 @@ class LightNode:
         return ".".join([HOST, DNS_SUFFIX])
 
     def __init__(self):
-        self.log = logging.getLogger(__name__)
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     def __del__(self):
-        # call socket() again to close the connection
+        # socket() yields, so call socket() again to close the connection
         socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     def send_message(self, msg_type: MsgType, data: bytearray = bytearray()):
@@ -181,33 +180,33 @@ class LightServer(LightNode):
 
     def run(self):
         while True:
+            log.info("Waiting for connection...")
             self.sock.listen()
             self.xcvr, addr = self.sock.accept()
-            with self.xcvr:
-                log.info(f"Connected by {addr}")
-                while True:
-                    data = self.receive_message()
-                    if not data:
-                        log.info("no data")
+            log.info(f"Connected by {addr}")
+            while True:
+                data = self.receive_message()
+                if not data:
+                    log.info("no data")
+                    break
+
+                log.debug(f"data received {data}")
+
+                if data[0] == MsgType.VERSION_REQUEST:
+                    log.info("received version request")
+                    self.send_version()
+                    self.send_message(MsgType.VERSION_REQUEST)
+                elif data[0] == MsgType.VERSION_RESPONSE:
+                    if (
+                        len(data) != 3
+                        or VERSION_MAJ != data[1]
+                        or VERSION_MIN != data[2]
+                    ):
+                        log.info("Updating...")
+                        subprocess.run(["git", "pull"])
+                        log.info("Update pulled. Restarting...")
+                        self.close_server = True
                         break
-
-                    log.debug(f"data received {data}")
-
-                    if data[0] == MsgType.VERSION_REQUEST:
-                        log.info("received version request")
-                        self.send_version()
-                        self.send_message(MsgType.VERSION_REQUEST)
-                    elif data[0] == MsgType.VERSION_RESPONSE:
-                        if (
-                            len(data) != 3
-                            or VERSION_MAJ != data[1]
-                            or VERSION_MIN != data[2]
-                        ):
-                            log.info("Updating...")
-                            subprocess.run(["git", "pull"])
-                            log.info("Update pulled. Restarting...")
-                            self.close_server = True
-                            break
 
             log.info("Client disconnected")
             if self.close_server:
@@ -218,7 +217,10 @@ class LightClient(LightNode):
     def __init__(self):
         super().__init__()
         self.sock.connect((LightNode.get_server_name(), PORT))
+        self.sock.sendall(b"this is the first message")
         self.xcvr = self.sock
+        self.xcvr.sendall(b"and this is the second one")
+        self.send_message(MsgType.RESTART_NOTICE, b"Hello, this is a longer string")
 
     def run(self):
         x = input("Enter 1 to send version and 2 to query: ")
