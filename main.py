@@ -123,6 +123,8 @@ PORT = 65432  # The port used by the server
 VERSION_MAJ = 0
 VERSION_MIN = 0
 
+log = logging.getLogger(__name__)
+
 
 class MsgType(Enum):
     # Do not change the order or number of these message types
@@ -141,6 +143,7 @@ class LightNode:
         return ".".join([HOST, DNS_SUFFIX])
 
     def __init__(self):
+        self.log = logging.getLogger(__name__)
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     def __del__(self):
@@ -148,17 +151,22 @@ class LightNode:
         socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     def send_message(self, msg_type: MsgType, data: bytearray = bytearray()):
-        msg = bytearray(msg_type.value) + data
+        msg = bytearray((msg_type.value,)) + data
+        log.debug(f"send: {msg}")
         self.xcvr.sendall(msg)
 
     def receive_message(self):
-        return self.xcvr.recv(1024)
+        msg = self.xcvr.recv(1024)
+        log.debug(f"recv: {msg}")
+        return msg
 
     def query(self, msg_type: MsgType, data: bytearray = bytearray()):
+        log.debug("query")
         self.send_message(msg_type, data)
         return self.receive_message()
 
     def send_version(self):
+        log.debug(f"sending version: {VERSION_MAJ}.{VERSION_MIN}")
         self.send_message(
             MsgType.VERSION_RESPONSE, bytearray([VERSION_MAJ, VERSION_MIN])
         )
@@ -176,15 +184,17 @@ class LightServer(LightNode):
             self.sock.listen()
             self.xcvr, addr = self.sock.accept()
             with self.xcvr:
-                print(f"Connected by {addr}")
+                log.info(f"Connected by {addr}")
                 while True:
                     data = self.receive_message()
                     if not data:
+                        log.info("no data")
                         break
 
-                    print(f"data received {data}")
+                    log.debug(f"data received {data}")
 
                     if data[0] == MsgType.VERSION_REQUEST:
+                        log.info("received version request")
                         self.send_version()
                         self.send_message(MsgType.VERSION_REQUEST)
                     elif data[0] == MsgType.VERSION_RESPONSE:
@@ -193,10 +203,13 @@ class LightServer(LightNode):
                             or VERSION_MAJ != data[1]
                             or VERSION_MIN != data[2]
                         ):
+                            log.info("Updating...")
                             subprocess.run(["git", "pull"])
+                            log.info("Update pulled. Restarting...")
                             self.close_server = True
                             break
 
+            log.info("Client disconnected")
             if self.close_server:
                 break
 
@@ -209,10 +222,10 @@ class LightClient(LightNode):
 
     def run(self):
         x = input("Enter 1 to send version and 2 to query: ")
-        if x == 1:
+        if x == "1":
             self.send_version()
         else:
-            print(self.query(MsgType.VERSION_REQUEST))
+            log.info(self.query(MsgType.VERSION_REQUEST))
 
 
 def setup_logging(logging_level):
@@ -222,7 +235,6 @@ def setup_logging(logging_level):
     log_formatter = logging.Formatter(
         "%(asctime)s.%(msecs)03d %(levelname)s %(filename)s %(lineno)s | %(message)s"
     )
-    log = logging.getLogger(__name__)
 
     file_handler = logging.FileHandler(
         f"logs/{datetime.now().strftime('%Y%m%d%H%M%S')}.log"

@@ -4,6 +4,7 @@
 # Development dirs
 lib/
 venv/
+__pycache__/
 
 # Auto-generated files
 logs/
