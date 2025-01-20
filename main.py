@@ -121,7 +121,7 @@ HOST = "lights-pi"  # The server's hostname or IP address
 DNS_SUFFIX = "local"
 PORT = 65432  # The port used by the server
 VERSION_MAJ = 0
-VERSION_MIN = 0
+VERSION_MIN = 1
 
 log = logging.getLogger(__name__)
 
@@ -204,6 +204,8 @@ class LightServer(LightNode):
                         log.info("Update pulled. Restarting...")
                         self.close_server = True
                         break
+                    else:
+                        log.info("Server and Client are on the same version")
                 else:
                     log.error(f"Unable to decipher message: {data}")
 
