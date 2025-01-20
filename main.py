@@ -187,16 +187,13 @@ class LightServer(LightNode):
             while True:
                 data = self.receive_message()
                 if not data:
-                    log.info("no data")
                     break
 
-                log.debug(f"data received {data}")
-
-                if data[0] == MsgType.VERSION_REQUEST:
-                    log.info("received version request")
+                if data[0] == MsgType.VERSION_REQUEST.value:
+                    log.info("Received version request")
                     self.send_version()
                     self.send_message(MsgType.VERSION_REQUEST)
-                elif data[0] == MsgType.VERSION_RESPONSE:
+                elif data[0] == MsgType.VERSION_RESPONSE.value:
                     if (
                         len(data) != 3
                         or VERSION_MAJ != data[1]
@@ -207,6 +204,8 @@ class LightServer(LightNode):
                         log.info("Update pulled. Restarting...")
                         self.close_server = True
                         break
+                else:
+                    log.error(f"Unable to decipher message: {data}")
 
             log.info("Client disconnected")
             if self.close_server:
@@ -217,17 +216,15 @@ class LightClient(LightNode):
     def __init__(self):
         super().__init__()
         self.sock.connect((LightNode.get_server_name(), PORT))
-        self.sock.sendall(b"this is the first message")
         self.xcvr = self.sock
-        self.xcvr.sendall(b"and this is the second one")
-        self.send_message(MsgType.RESTART_NOTICE, b"Hello, this is a longer string")
 
     def run(self):
-        x = input("Enter 1 to send version and 2 to query: ")
-        if x == "1":
-            self.send_version()
-        else:
-            log.info(self.query(MsgType.VERSION_REQUEST))
+        while True:
+            x = input("Enter 1 to send version and 2 to query: ")
+            if x == "1":
+                self.send_version()
+            else:
+                log.info(self.query(MsgType.VERSION_REQUEST))
 
 
 def setup_logging(logging_level):
@@ -263,10 +260,10 @@ def main():
 
     node = None
     if socket.gethostname() == HOST:
-        log.info("server detected")
+        log.info("Server detected")
         node = LightServer()
     else:
-        log.info("client detected")
+        log.info("Client detected")
         node = LightClient()
 
     node.run()
