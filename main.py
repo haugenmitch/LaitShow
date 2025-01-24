@@ -114,8 +114,11 @@ from datetime import datetime
 from enum import Enum
 import logging
 import os
+import queue
 import socket
 import subprocess
+import threading
+from time import sleep
 
 HOST = "lights-pi"  # The server's hostname or IP address
 DNS_SUFFIX = "local"
@@ -131,11 +134,13 @@ class MsgType(Enum):
     VERSION_REQUEST = 0
     VERSION_RESPONSE = 1
     RESTART_NOTICE = 2
+    CHANGE_LIGHT = 10
 
 
 class LightNode:
     sock = None
     xcvr = None
+    msg_queue = None
 
     def get_server_name():
         if DNS_SUFFIX is None:
@@ -144,10 +149,15 @@ class LightNode:
 
     def __init__(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        msg_queue = queue.Queue()
 
     def __del__(self):
         # socket() yields, so call socket() again to close the connection
         socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+    def clear_msg_queue(self):
+        while not self.msg_queue.empty():
+            self.msg_queue.get()
 
     def send_message(self, msg_type: MsgType, data: bytearray = bytearray()):
         msg = bytearray((msg_type.value,)) + data
@@ -173,60 +183,116 @@ class LightNode:
 
 class LightServer(LightNode):
     close_server = False
+    pixels = None
 
     def __init__(self):
+        import board
+        import neopixel
+
         super().__init__()
         self.sock.bind((LightNode.get_server_name(), PORT))
+        threading.Thread(target=self.receive_messages, daemon=True).start()
 
-    def run(self):
+        BOARD_PIN = board.D21
+        NUM_PIXELS = 100
+        self.pixels = neopixel.NeoPixel(
+            BOARD_PIN, NUM_PIXELS, brightness=0.2, auto_write=False, pixel_order="RGB"
+        )
+        self.pixels.fill((255, 0, 0))
+        self.pixels.show()
+        sleep(0.5)
+        self.pixels.fill((0, 255, 0))
+        self.pixels.show()
+        sleep(0.5)
+        self.pixels.fill((0, 0, 255))
+        self.pixels.show()
+        sleep(0.5)
+        self.pixels.fill((0, 0, 0))
+        self.pixels.show()
+
+    def receive_messages(self):
         while True:
             log.info("Waiting for connection...")
             self.sock.listen()
             self.xcvr, addr = self.sock.accept()
             log.info(f"Connected by {addr}")
+            # after connecting to a new client, check version compatibility
+            self.query(MsgType.VERSION_REQUEST)
             while True:
                 data = self.receive_message()
                 if not data:
                     break
 
-                if data[0] == MsgType.VERSION_REQUEST.value:
-                    log.info("Received version request")
-                    self.send_version()
-                    self.send_message(MsgType.VERSION_REQUEST)
-                elif data[0] == MsgType.VERSION_RESPONSE.value:
-                    if (
-                        len(data) != 3
-                        or VERSION_MAJ != data[1]
-                        or VERSION_MIN != data[2]
-                    ):
-                        log.info("Updating...")
-                        subprocess.run(["git", "pull"])
-                        log.info("Update pulled. Restarting...")
-                        self.close_server = True
-                        break
-                    else:
-                        log.info("Server and Client are on the same version")
-                else:
-                    log.error(f"Unable to decipher message: {data}")
+                self.msg_queue.put(data)
 
             log.info("Client disconnected")
+            self.clear_msg_queue()
             if self.close_server:
                 break
+
+    def run(self):
+        while True:
+            data = self.msg_queue.get()
+
+            if data[0] == MsgType.VERSION_REQUEST.value:
+                log.info("Received version request")
+                self.send_version()
+            elif data[0] == MsgType.VERSION_RESPONSE.value:
+                if len(data) != 3 or VERSION_MAJ != data[1] or VERSION_MIN != data[2]:
+                    log.info("Updating...")
+                    dir_path = os.path.dirname(os.path.realpath(__file__))
+                    subprocess.run(["git", "-C", dir_path, "pull"])
+                    log.info("Update pulled. Restarting...")
+                    self.send_message(MsgType.RESTART_NOTICE)
+                    self.close_server = True
+                    self.sock.close()
+                    break
+                else:
+                    log.info("Server and Client are on the same version")
+            elif data[0] == MsgType.CHANGE_LIGHT.value:
+                if len(data) != 5:
+                    log.error(f"Incorrectly formatted change light message: {data}")
+                self.pixels[data[1]] = tuple(data[2:5])
+                self.pixels.show()
+            else:
+                log.error(f"Unable to decipher message: {data}")
 
 
 class LightClient(LightNode):
     def __init__(self):
         super().__init__()
-        self.sock.connect((LightNode.get_server_name(), PORT))
-        self.xcvr = self.sock
+        threading.Thread(target=self.receive_messages, daemon=True).start()
+
+    def receive_messages(self):
+        while True:
+            self.sock.connect((LightNode.get_server_name(), PORT))
+            self.xcvr = self.sock
+            self.info("Connected to server")
+
+            while True:
+                data = self.receive_message()
+
+                if data[0] == MsgType.VERSION_REQUEST.value:
+                    log.info("Received version request")
+                    self.send_version()
+                elif data[0] == MsgType.RESTART_NOTICE.value:
+                    log.info("Server is restarting. Attempting to reconnect...")
+                    break
+                else:
+                    self.msg_queue.put(data)
+            self.clear_msg_queue()
 
     def run(self):
+        sleep(2)
         while True:
-            x = input("Enter 1 to send version and 2 to query: ")
-            if x == "1":
-                self.send_version()
-            else:
-                log.info(self.query(MsgType.VERSION_REQUEST))
+            for i in range(100):
+                self.send_message(MsgType.CHANGE_LIGHT, [i, 255, 255, 255])
+                sleep(0.1)
+                self.send_message(MsgType.CHANGE_LIGHT, [i, 0, 0, 0])
+            for i in range(98, 0, -1):
+                self.send_message(MsgType.CHANGE_LIGHT, [i, 255, 255, 255])
+                sleep(0.1)
+                self.send_message(MsgType.CHANGE_LIGHT, [i, 0, 0, 0])
 
 
 def setup_logging(logging_level):
