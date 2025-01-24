@@ -149,7 +149,7 @@ class LightNode:
 
     def __init__(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        msg_queue = queue.Queue()
+        self.msg_queue = queue.Queue()
 
     def __del__(self):
         # socket() yields, so call socket() again to close the connection
@@ -286,13 +286,13 @@ class LightClient(LightNode):
         sleep(2)
         while True:
             for i in range(100):
-                self.send_message(MsgType.CHANGE_LIGHT, [i, 255, 255, 255])
+                self.send_message(MsgType.CHANGE_LIGHT, bytearray([i, 255, 255, 255]))
                 sleep(0.1)
-                self.send_message(MsgType.CHANGE_LIGHT, [i, 0, 0, 0])
+                self.send_message(MsgType.CHANGE_LIGHT, bytearray([i, 0, 0, 0]))
             for i in range(98, 0, -1):
-                self.send_message(MsgType.CHANGE_LIGHT, [i, 255, 255, 255])
+                self.send_message(MsgType.CHANGE_LIGHT, bytearray([i, 255, 255, 255]))
                 sleep(0.1)
-                self.send_message(MsgType.CHANGE_LIGHT, [i, 0, 0, 0])
+                self.send_message(MsgType.CHANGE_LIGHT, bytearray([i, 0, 0, 0]))
 
 
 def setup_logging(logging_level):
