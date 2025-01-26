@@ -110,7 +110,7 @@
 # =============================================================
 
 import argparse
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 import logging
 import os
@@ -124,7 +124,7 @@ HOST = "lights-pi"  # The server's hostname or IP address
 DNS_SUFFIX = "local"
 PORT = 65432  # The port used by the server
 VERSION_MAJ = 0
-VERSION_MIN = 1
+VERSION_MIN = 2
 
 log = logging.getLogger(__name__)
 
@@ -135,12 +135,14 @@ class MsgType(Enum):
     VERSION_RESPONSE = 1
     RESTART_NOTICE = 2
     CHANGE_LIGHT = 10
+    LIGHT_CHANGED = 11
 
 
 class LightNode:
     sock = None
     xcvr = None
     msg_queue = None
+    connected = False
 
     def get_server_name():
         if DNS_SUFFIX is None:
@@ -215,6 +217,7 @@ class LightServer(LightNode):
             log.info("Waiting for connection...")
             self.sock.listen()
             self.xcvr, addr = self.sock.accept()
+            self.connected = True
             log.info(f"Connected by {addr}")
             # after connecting to a new client, check version compatibility
             self.query(MsgType.VERSION_REQUEST)
@@ -227,6 +230,7 @@ class LightServer(LightNode):
 
             log.info("Client disconnected")
             self.clear_msg_queue()
+            self.connected = False
             if self.close_server:
                 break
 
@@ -254,6 +258,7 @@ class LightServer(LightNode):
                     log.error(f"Incorrectly formatted change light message: {data}")
                 self.pixels[data[1]] = tuple(data[2:5])
                 self.pixels.show()
+                self.send_message(MsgType.LIGHT_CHANGED, bytearray([data[1]]))
             else:
                 log.error(f"Unable to decipher message: {data}")
 
@@ -267,7 +272,8 @@ class LightClient(LightNode):
         while True:
             self.sock.connect((LightNode.get_server_name(), PORT))
             self.xcvr = self.sock
-            self.info("Connected to server")
+            log.info("Connected to server")
+            self.connected = True
 
             while True:
                 data = self.receive_message()
@@ -281,18 +287,39 @@ class LightClient(LightNode):
                 else:
                     self.msg_queue.put(data)
             self.clear_msg_queue()
+            self.connected = False
 
     def run(self):
-        sleep(2)
-        while True:
+        while not self.connected:
+            pass
+
+        while self.connected:
             for i in range(100):
-                self.send_message(MsgType.CHANGE_LIGHT, bytearray([i, 255, 255, 255]))
-                sleep(0.1)
-                self.send_message(MsgType.CHANGE_LIGHT, bytearray([i, 0, 0, 0]))
+                self.cmd_light_change(i, (255, 255, 255))
+                self.cmd_light_change(i, (0, 0, 0))
+                # self.send_message(MsgType.CHANGE_LIGHT, bytearray([i, 255, 255, 255]))
+                # sleep(0.1)
+                # self.send_message(MsgType.CHANGE_LIGHT, bytearray([i, 0, 0, 0]))
             for i in range(98, 0, -1):
-                self.send_message(MsgType.CHANGE_LIGHT, bytearray([i, 255, 255, 255]))
-                sleep(0.1)
-                self.send_message(MsgType.CHANGE_LIGHT, bytearray([i, 0, 0, 0]))
+                self.cmd_light_change(i, (255, 255, 255))
+                self.cmd_light_change(i, (0, 0, 0))
+                # self.send_message(MsgType.CHANGE_LIGHT, bytearray([i, 255, 255, 255]))
+                # sleep(0.1)
+                # self.send_message(MsgType.CHANGE_LIGHT, bytearray([i, 0, 0, 0]))
+
+    def cmd_light_change(self, index: int, color: tuple) -> bool:
+        self.send_message(MsgType.CHANGE_LIGHT, bytearray([index] + list(color)))
+        wait_end = datetime.now() + timedelta(seconds=5)
+        while datetime.now() < wait_end:
+            try:
+                msg = self.msg_queue.get(
+                    timeout=(wait_end - datetime.now()).total_seconds()
+                )
+            except queue.Empty:
+                return False
+            if msg[0] == MsgType.LIGHT_CHANGED.value and msg[1] == index:
+                return True
+        return False
 
 
 def setup_logging(logging_level):
