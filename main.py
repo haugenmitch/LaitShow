@@ -114,6 +114,7 @@ from datetime import datetime, timedelta
 from enum import Enum
 import logging
 import os
+from pathlib import Path
 import queue
 import socket
 import subprocess
@@ -296,20 +297,21 @@ class LightClient(LightNode):
         while self.connected:
             for i in range(100):
                 self.cmd_light_change(i, (255, 255, 255))
+                self.cmd_light_change(i, (255, 0, 0))
+                self.cmd_light_change(i, (0, 255, 0))
+                self.cmd_light_change(i, (0, 0, 255))
                 self.cmd_light_change(i, (0, 0, 0))
-                # self.send_message(MsgType.CHANGE_LIGHT, bytearray([i, 255, 255, 255]))
-                # sleep(0.1)
-                # self.send_message(MsgType.CHANGE_LIGHT, bytearray([i, 0, 0, 0]))
+
             for i in range(98, 0, -1):
                 self.cmd_light_change(i, (255, 255, 255))
+                self.cmd_light_change(i, (255, 0, 0))
+                self.cmd_light_change(i, (0, 255, 0))
+                self.cmd_light_change(i, (0, 0, 255))
                 self.cmd_light_change(i, (0, 0, 0))
-                # self.send_message(MsgType.CHANGE_LIGHT, bytearray([i, 255, 255, 255]))
-                # sleep(0.1)
-                # self.send_message(MsgType.CHANGE_LIGHT, bytearray([i, 0, 0, 0]))
 
     def cmd_light_change(self, index: int, color: tuple) -> bool:
         self.send_message(MsgType.CHANGE_LIGHT, bytearray([index] + list(color)))
-        wait_end = datetime.now() + timedelta(seconds=5)
+        wait_end = datetime.now() + timedelta(seconds=2)
         while datetime.now() < wait_end:
             try:
                 msg = self.msg_queue.get(
@@ -323,15 +325,17 @@ class LightClient(LightNode):
 
 
 def setup_logging(logging_level):
-    if not os.path.exists("logs"):
-        os.mkdir("logs")
+    dir_path = Path(os.path.dirname(os.path.realpath(__file__)))
+
+    if not os.path.exists(dir_path / "logs"):
+        os.mkdir(dir_path / "logs")
 
     log_formatter = logging.Formatter(
         "%(asctime)s.%(msecs)03d %(levelname)s %(filename)s %(lineno)s | %(message)s"
     )
 
     file_handler = logging.FileHandler(
-        f"logs/{datetime.now().strftime('%Y%m%d%H%M%S')}.log"
+        f"{dir_path}/logs/{datetime.now().strftime('%Y%m%d%H%M%S')}.log"
     )
     file_handler.setFormatter(log_formatter)
     log.addHandler(file_handler)
