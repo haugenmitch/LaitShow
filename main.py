@@ -110,6 +110,7 @@
 # =============================================================
 
 import argparse
+import cv2
 from datetime import datetime, timedelta
 from enum import Enum
 import logging
@@ -265,9 +266,19 @@ class LightServer(LightNode):
 
 
 class LightClient(LightNode):
+    cap = None
+
     def __init__(self):
         super().__init__()
         threading.Thread(target=self.receive_messages, daemon=True).start()
+
+        # Access the webcam (usually index 0)
+        self.cap = cv2.VideoCapture(0)
+
+        # Check if the webcam is opened successfully
+        if not self.cap.isOpened():
+            print("Error opening webcam")
+            exit()
 
     def receive_messages(self):
         while True:
@@ -294,20 +305,33 @@ class LightClient(LightNode):
         while not self.connected:
             pass
 
+        excluded = [0, 1, 2, 3]
+
         while self.connected:
             for i in range(100):
-                self.cmd_light_change(i, (255, 255, 255))
-                self.cmd_light_change(i, (255, 0, 0))
-                self.cmd_light_change(i, (0, 255, 0))
-                self.cmd_light_change(i, (0, 0, 255))
-                self.cmd_light_change(i, (0, 0, 0))
+                if i in excluded:
+                    continue
 
-            for i in range(98, 0, -1):
                 self.cmd_light_change(i, (255, 255, 255))
+                self.capture_image(f"{i:02}_white")
                 self.cmd_light_change(i, (255, 0, 0))
+                self.capture_image(f"{i:02}_red")
                 self.cmd_light_change(i, (0, 255, 0))
+                self.capture_image(f"{i:02}_green")
                 self.cmd_light_change(i, (0, 0, 255))
+                self.capture_image(f"{i:02}_blue")
                 self.cmd_light_change(i, (0, 0, 0))
+                self.capture_image(f"{i:02}_off")
+
+            log.info("Done capturing calibration images")
+            break
+
+            # for i in range(98, 0, -1):
+            #     self.cmd_light_change(i, (255, 255, 255))
+            #     self.cmd_light_change(i, (255, 0, 0))
+            #     self.cmd_light_change(i, (0, 255, 0))
+            #     self.cmd_light_change(i, (0, 0, 255))
+            #     self.cmd_light_change(i, (0, 0, 0))
 
     def cmd_light_change(self, index: int, color: tuple) -> bool:
         self.send_message(MsgType.CHANGE_LIGHT, bytearray([index] + list(color)))
@@ -323,12 +347,31 @@ class LightClient(LightNode):
                 return True
         return False
 
+    def capture_image(self, name):
+        # Clear the stale webcam buffer
+        for _ in range(4):
+            self.cap.read()
+
+        ret, frame = self.cap.read()
+
+        # Check if the frame is captured successfully
+        if ret:
+            # Save the frame as a JPEG image
+            dir_path = Path(os.path.dirname(os.path.realpath(__file__)))
+            cv2.imwrite(str(dir_path / f"calibration/{name}.jpg"), frame)
+            log.debug(f"Saved image {name}.jpg")
+        else:
+            log.error(f"Failed to capture image {name}")
+
 
 def setup_logging(logging_level):
     dir_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
     if not os.path.exists(dir_path / "logs"):
         os.mkdir(dir_path / "logs")
+
+    if not os.path.exists(dir_path / "calibration"):
+        os.mkdir(dir_path / "calibration")
 
     log_formatter = logging.Formatter(
         "%(asctime)s.%(msecs)03d %(levelname)s %(filename)s %(lineno)s | %(message)s"
