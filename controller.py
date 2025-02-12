@@ -87,7 +87,7 @@ def main():
     log.info("Starting multicast controller advertising")
     threading.Thread(
         target=advertise_server,
-        args=(configs["network"]["mcast_grp"], configs["network"]["mcast_port"]),
+        args=(configs["network"]["mcast_grp"], int(configs["network"]["mcast_port"])),
         daemon=True,
     ).start()
 
