@@ -3,7 +3,9 @@ import configparser
 import csv
 import logger
 import logging
+import os
 from operator import itemgetter
+from pathlib import Path
 import requests
 import socket
 import struct
@@ -23,8 +25,9 @@ def main():
 
     log = logger.setup_logging(logging.DEBUG if args.verbose else logging.INFO)
 
+    dir_path = Path(os.path.dirname(os.path.realpath(__file__)))
     configs = configparser.ConfigParser()
-    configs.read("settings.ini")
+    configs.read(dir_path / "settings.ini")
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind((configs["network"]["mcast_grp"], int(configs["network"]["mcast_port"])))
@@ -49,7 +52,7 @@ def main():
     log.info(r.json()["data"])
 
     coords = []
-    with open("data.csv", "r") as coords_file:
+    with open(dir_path / "data.csv", "r") as coords_file:
         reader = csv.reader(coords_file)
         for row in reader:
             coords.append([int(d) for d in row])

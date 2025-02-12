@@ -5,6 +5,7 @@ from flask import Flask, jsonify, request, url_for, redirect
 import logger
 import neopixel
 import os
+from pathlib import Path
 import socket
 import subprocess
 import sys
@@ -79,8 +80,9 @@ def advertise_server(mcast_grp, mcast_port):
 
 
 def main():
+    dir_path = Path(os.path.dirname(os.path.realpath(__file__)))
     configs = configparser.ConfigParser()
-    configs.read("settings.ini")
+    configs.read(dir_path / "settings.ini")
 
     log.info("Starting multicast controller advertising")
     threading.Thread(

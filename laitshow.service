@@ -5,7 +5,7 @@ After=network.target
 [Service]
 Type=simple
 Restart=always
-ExecStart=/home/mitchell/lights-venv/bin/python /home/mitchell/LaitShow/main.py
+ExecStart=/home/mitchell/lights_venv/bin/python /home/mitchell/LaitShow/controller.py
 
 [Install]
 WantedBy=multi-user.target
