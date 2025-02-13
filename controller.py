@@ -59,7 +59,7 @@ def update():
 @app.route("/light/<int:ind>", methods=["PUT"])
 def light(ind):
     if request.method == "PUT":
-        log.info(f"light {ind} {request.form["color"]}")
+        log.info(f"light {ind} {request.form['color']}")
         pixels[ind] = literal_eval(request.form["color"])
         pixels.show()
         return jsonify({"success": f"{ind}"})
