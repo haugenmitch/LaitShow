@@ -91,6 +91,9 @@ def main():
         daemon=True,
     ).start()
 
+    global BOARD_PIN
+    global NUM_PIXELS
+    global pixels
     BOARD_PIN = board.D21  # TODO: make this settable via configs
     NUM_PIXELS = int(configs["neopixels"]["count"])
     pixels = neopixel.NeoPixel(
