@@ -59,8 +59,10 @@ def update():
 @app.route("/light/<int:ind>", methods=["PUT"])
 def light(ind):
     if request.method == "PUT":
+        log.info(f"light {ind} {request.form["color"]}")
         pixels[ind] = literal_eval(request.form["color"])
         pixels.show()
+        return jsonify({"success": f"{ind}"})
 
 
 @app.route("/lights", methods=["PUT"])
@@ -68,6 +70,7 @@ def lights():
     if request.method == "PUT":
         pixels.fill(literal_eval(request.form["color"]))
         pixels.show()
+        return jsonify({"success": f"1"})
 
 
 def advertise_server(mcast_grp, mcast_port):
