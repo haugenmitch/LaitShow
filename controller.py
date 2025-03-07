@@ -44,7 +44,7 @@ class Controller:
                 # POST has to return a redirect
                 return redirect(url_for("disp", num=19))
 
-        @app.route("/version", methods=["GET", "PUT"])
+        @self.app.route("/version", methods=["GET", "PUT"])
         def update():
             if request.method == "GET":
                 return jsonify({"version": "TBD"})
@@ -57,7 +57,7 @@ class Controller:
                     sys.exit()
                 return jsonify({"version": "TBD"})
 
-        @app.route("/light/<int:ind>", methods=["PUT"])
+        @self.app.route("/light/<int:ind>", methods=["PUT"])
         def light(ind):
             if request.method == "PUT":
                 log.info(f"light {ind} {request.form['color']}")
@@ -67,7 +67,7 @@ class Controller:
                 self.pixels.show()
                 return jsonify({"success": f"{ind}"})
 
-        @app.route("/lights", methods=["PUT"])
+        @self.app.route("/lights", methods=["PUT"])
         def lights():
             if request.method == "PUT":
                 self.pixels.fill(literal_eval(request.form["color"]))
