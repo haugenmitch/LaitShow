@@ -86,14 +86,14 @@ class Controller:
         DURATION = 3
         start = time.time()
         while (curr := time.time() - start) < DURATION:
-            remaining_percent = 1 - curr / DURATION
-            curr_frac = math.ceil(math.log2(remaining_percent))
-            next_frac = math.floor(math.log2(remaining_percent))
+            percent_complete = curr / DURATION
+            curr_frac = math.ceil(math.log2(1 - percent_complete))
+            next_frac = math.floor(math.log2(1 - percent_complete))
             if curr_frac == next_frac:
                 self.pixels.brightness = 0
                 self.pixels.show()
                 continue
-            percent_curr_frac = remaining_percent - (1 - 2**curr_frac)
+            percent_curr_frac = percent_complete - (1 - 2**curr_frac)
             brightness = 1 - math.sqrt(percent_curr_frac / 2**next_frac)
             self.pixels.brightness = brightness
             self.pixels.show()
