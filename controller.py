@@ -32,11 +32,11 @@ class Controller:
         self.app = Flask(__name__)
 
         @self.app.route("/home/<int:num>", methods=["GET"])
-        def disp(num):
+        def disp(self, num):
             return jsonify({"data": num**2})
 
         @self.app.route("/", methods=["GET", "POST"])
-        def home():
+        def home(self):
             if request.method == "GET":
                 data = "hello world"
                 return jsonify({"data": data})
@@ -45,7 +45,7 @@ class Controller:
                 return redirect(url_for("disp", num=19))
 
         @self.app.route("/version", methods=["GET", "PUT"])
-        def update():
+        def update(self):
             if request.method == "GET":
                 return jsonify({"version": "TBD"})
             elif request.method == "PUT":
@@ -58,7 +58,7 @@ class Controller:
                 return jsonify({"version": "TBD"})
 
         @self.app.route("/light/<int:ind>", methods=["PUT"])
-        def light(ind):
+        def light(self, ind):
             if request.method == "PUT":
                 log.info(f"light {ind} {request.form['color']}")
                 self.pixels[ind] = literal_eval(request.form["color"])
@@ -68,7 +68,7 @@ class Controller:
                 return jsonify({"success": f"{ind}"})
 
         @self.app.route("/lights", methods=["PUT"])
-        def lights():
+        def lights(self):
             if request.method == "PUT":
                 self.pixels.fill(literal_eval(request.form["color"]))
                 if "brightness" in request.form:
@@ -83,7 +83,7 @@ class Controller:
         self.pixels.brightness = 1.0
         self.pixels.show()
 
-        DURATION = 3
+        DURATION = 5
         start = time.time()
         while (curr := time.time() - start) < DURATION:
             percent_complete = curr / DURATION
@@ -97,6 +97,8 @@ class Controller:
             brightness = 1 - math.sqrt(percent_curr_frac / 2**next_frac)
             self.pixels.brightness = brightness
             self.pixels.show()
+            # let lights finish changing brightness before next cycle
+            time.sleep(0.01)
 
         self.pixels.brightness = 0
         self.pixels.show()
