@@ -22,8 +22,8 @@ class Controller:
         self.BOARD_PIN = getattr(board, configs["neopixels"]["board_pin"])
         self.NUM_PIXELS = int(configs["neopixels"]["count"])
         self.pixels = neopixel.NeoPixel(
-            BOARD_PIN,
-            NUM_PIXELS,
+            self.BOARD_PIN,
+            self.NUM_PIXELS,
             brightness=0.2,
             auto_write=False,
             pixel_order=configs["neopixels"]["pixel_order"],
