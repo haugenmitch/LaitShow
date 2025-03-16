@@ -43,7 +43,10 @@ class Client:
 Select an option:
 1. Run a demo
 2. Perform a calibration
-3. Quit
+3. Set individual light
+4. Set all lights
+5. Set brightness
+0. Quit
             """
             )
             option = int(input("Enter a number: "))
@@ -51,15 +54,22 @@ Select an option:
                 self.demo()
             elif option == 2:
                 self.calibrate()
+            elif option == 3:
+                self.set_individual_light()
+            elif option == 4:
+                self.set_all_lights()
+            elif option == 5:
+                self.set_brightness()
             else:
                 break
 
     def demo(self):
-        r = requests.get(
-            f"http://{self.controller_ip}:{self.configs["network"]["flask_port"]}/home/1"
-        )
-        log.info(r.status_code)
-        log.info(r.json()["data"])
+        # r = requests.get(
+        #     f"http://{self.controller_ip}:{self.configs["network"]["flask_port"]}/home/1"
+        # )
+        # log.info(r.status_code)
+        # log.info(r.json())
+        # log.info(r.json()["data"])
 
         dir_path = Path(os.path.dirname(os.path.realpath(__file__)))
         coords = []
@@ -118,6 +128,27 @@ Select an option:
         )
 
     def calibrate(self):
+        pass
+
+    def set_individual_light(self):
+        x = input()
+        # don't even need to convert to int unless I want to check for correctness
+        (n, r, g, b, l) = x.split()
+        requests.put(
+            f'http://{self.controller_ip}:{self.configs["network"]["flask_port"]}/light/{n}',
+            data={"color": f"({r},{g},{b})", "brightness": l},
+        )
+
+    def set_all_lights(self):
+        x = input()
+        # don't even need to convert to int unless I want to check for correctness
+        (r, g, b, l) = x.split()
+        requests.put(
+            f'http://{self.controller_ip}:{self.configs["network"]["flask_port"]}/lights',
+            data={"color": f"({r},{g},{b})", "brightness": l},
+        )
+
+    def set_brightness(self):
         pass
 
 
