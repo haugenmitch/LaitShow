@@ -31,52 +31,53 @@ class Controller:
 
         self.app = Flask(__name__)
 
-        @self.app.route("/home/<int:num>", methods=["GET"])
-        def disp(self, num):
-            return jsonify({"data": num**2})
-
-        @self.app.route("/", methods=["GET", "POST"])
-        def home(self):
-            if request.method == "GET":
-                data = "hello world"
-                return jsonify({"data": data})
-            elif request.method == "POST":
-                # POST has to return a redirect
-                return redirect(url_for("disp", num=19))
-
-        @self.app.route("/version", methods=["GET", "PUT"])
-        def update(self):
-            if request.method == "GET":
-                return jsonify({"version": "TBD"})
-            elif request.method == "PUT":
-                if len(request.form["version"]):
-                    log.info("Updating...")
-                    dir_path = os.path.dirname(os.path.realpath(__file__))
-                    subprocess.run(["git", "-C", dir_path, "pull"])
-                    log.info("Update pulled. Restarting...")
-                    sys.exit()
-                return jsonify({"version": "TBD"})
-
-        @self.app.route("/light/<int:ind>", methods=["PUT"])
-        def light(self, ind):
-            if request.method == "PUT":
-                log.info(f"light {ind} {request.form['color']}")
-                self.pixels[ind] = literal_eval(request.form["color"])
-                if "brightness" in request.form:
-                    self.pixels.brightness = request.form["brightness"]
-                self.pixels.show()
-                return jsonify({"success": f"{ind}"})
-
-        @self.app.route("/lights", methods=["PUT"])
-        def lights(self):
-            if request.method == "PUT":
-                self.pixels.fill(literal_eval(request.form["color"]))
-                if "brightness" in request.form:
-                    self.pixels.brightness = request.form["brightness"]
-                self.pixels.show()
-                return jsonify({"success": f"1"})
+        self.app.route("/home/<int:num>", methods=["GET"])(self.disp)
+        self.app.route("/", methods=["GET", "POST"])(self.home)
+        self.app.route("/version", methods=["GET", "PUT"])(self.update)
+        self.app.route("/light/<int:ind>", methods=["PUT"])(self.light)
+        self.app.route("/lights", methods=["PUT"])(self.lights)
 
         self._play_startup_animation()
+
+    def disp(self, num):
+        return jsonify({"data": num**2})
+
+    def home(self):
+        if request.method == "GET":
+            data = "hello world"
+            return jsonify({"data": data})
+        elif request.method == "POST":
+            # POST has to return a redirect
+            return redirect(url_for("disp", num=19))
+
+    def update(self):
+        if request.method == "GET":
+            return jsonify({"version": "TBD"})
+        elif request.method == "PUT":
+            if len(request.form["version"]):
+                log.info("Updating...")
+                dir_path = os.path.dirname(os.path.realpath(__file__))
+                subprocess.run(["git", "-C", dir_path, "pull"])
+                log.info("Update pulled. Restarting...")
+                sys.exit()
+            return jsonify({"version": "TBD"})
+
+    def light(self, ind):
+        if request.method == "PUT":
+            log.info(f"light {ind} {request.form['color']}")
+            self.pixels[ind] = literal_eval(request.form["color"])
+            if "brightness" in request.form:
+                self.pixels.brightness = float(request.form["brightness"])
+            self.pixels.show()
+            return jsonify({"success": f"{ind}"})
+
+    def lights(self):
+        if request.method == "PUT":
+            self.pixels.fill(literal_eval(request.form["color"]))
+            if "brightness" in request.form:
+                self.pixels.brightness = float(request.form["brightness"])
+            self.pixels.show()
+            return jsonify({"success": f"1"})
 
     def _play_startup_animation(self):
         self.pixels.fill((255, 255, 255))
