@@ -67,7 +67,7 @@ class Controller:
             log.info(f"light {ind} {request.form['color']}")
             self.pixels[ind] = literal_eval(request.form["color"])
             if "brightness" in request.form:
-                self.pixels.brightness = request.form["brightness"]
+                self.pixels.brightness = float(request.form["brightness"])
             self.pixels.show()
             return jsonify({"success": f"{ind}"})
 
@@ -75,7 +75,7 @@ class Controller:
         if request.method == "PUT":
             self.pixels.fill(literal_eval(request.form["color"]))
             if "brightness" in request.form:
-                self.pixels.brightness = request.form["brightness"]
+                self.pixels.brightness = float(request.form["brightness"])
             self.pixels.show()
             return jsonify({"success": f"1"})
 
