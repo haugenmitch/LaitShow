@@ -36,6 +36,7 @@ class Controller:
         self.app.route("/version", methods=["GET", "PUT"])(self.update)
         self.app.route("/light/<int:ind>", methods=["PUT"])(self.light)
         self.app.route("/lights", methods=["PUT"])(self.lights)
+        self.app.route("/brightness", methods=["GET", "PUT"])(self.brightness)
 
         self._play_startup_animation()
 
@@ -77,7 +78,14 @@ class Controller:
             if "brightness" in request.form:
                 self.pixels.brightness = float(request.form["brightness"])
             self.pixels.show()
-            return jsonify({"success": f"1"})
+            return jsonify({"success": "1"})
+
+    def brightness(self):
+        if request.method == "GET":
+            return jsonify({"brightness": self.pixels.brightness})
+        elif request.method == "PUT":
+            self.pixels.brightness = float(request.form["brightness"])
+            return jsonify({"success": "True"})
 
     def _play_startup_animation(self):
         self.pixels.fill((255, 255, 255))

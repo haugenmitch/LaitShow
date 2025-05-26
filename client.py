@@ -1,7 +1,6 @@
 import argparse
 import configparser
 import csv
-import logger
 import logging
 import os
 from operator import itemgetter
@@ -10,6 +9,9 @@ import requests
 import socket
 import struct
 import time
+
+import mapping
+import logger
 
 
 log = logger.setup_logging()
@@ -46,6 +48,7 @@ Select an option:
 3. Set individual light
 4. Set all lights
 5. Set brightness
+6. Update controller
 0. Quit
             """
             )
@@ -60,6 +63,8 @@ Select an option:
                 self.set_all_lights()
             elif option == 5:
                 self.set_brightness()
+            elif option == 6:
+                self.update_controller()
             else:
                 break
 
@@ -73,7 +78,7 @@ Select an option:
 
         dir_path = Path(os.path.dirname(os.path.realpath(__file__)))
         coords = []
-        with open(dir_path / "data.csv", "r") as coords_file:
+        with open(dir_path / "calibration/data.csv", "r") as coords_file:
             reader = csv.reader(coords_file)
             for row in reader:
                 coords.append([int(d) for d in row])
@@ -128,7 +133,8 @@ Select an option:
         )
 
     def calibrate(self):
-        pass
+        mapping.map_lights()
+        # TODO: send coords to controller
 
     def set_individual_light(self):
         x = input()
@@ -149,7 +155,17 @@ Select an option:
         )
 
     def set_brightness(self):
-        pass
+        b = input()
+        requests.put(
+            f'http://{self.controller_ip}:{self.configs["network"]["flask_port"]}/brightness',
+            data={"brightness": b},
+        )
+
+    def update_controller(self):
+        requests.put(
+            f'http://{self.controller_ip}:{self.configs["network"]["flask_port"]}/version',
+            data={"version": self.configs["network"]["api_version"]},
+        )
 
 
 def main():
@@ -157,7 +173,6 @@ def main():
         prog="LaitShow", description="Map and control Neopixels in 3D space"
     )
     parser.add_argument("-v", "--verbose", action="store_true")
-    parser.add_argument("-i", "--interactive", action="store_true")
     args = parser.parse_args()
 
     log.setLevel(logging.DEBUG if args.verbose else logging.INFO)
